@@ -7,6 +7,7 @@
  * Node modules
  */
 import express from 'express';
+import cors from 'cors';
 
 /**
  * Custom modules
@@ -14,9 +15,40 @@ import express from 'express';
 import config from '@/config';
 
 /**
+ * Types
+ */
+import type { CorsOptions } from 'cors';
+
+/**
  * Express app initialization
  */
 const app = express();
+
+// Configure CORS options
+const corsOptions: CorsOptions = {
+    origin: (origin, callback) => {
+        if (
+            config.NODE_ENV === 'development' ||
+            !origin ||
+            config.WHITELIST_ORIGINS.includes(origin)
+        ) {
+            callback(null, true);
+        } else {
+            callback(
+                new Error(
+                    `CORS policy does not allow access from origin: ${origin}`,
+                ),
+                false,
+            );
+            console.error(
+                `CORS policy does not allow access from origin: ${origin}`,
+            );
+        }
+    },
+};
+
+// Applly CORS middleware
+app.use(cors(corsOptions));
 
 // app.use(express.json());
 
