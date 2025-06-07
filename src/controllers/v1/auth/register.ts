@@ -15,6 +15,7 @@ import { genUsername } from '@/utils';
  * Models
  */
 import User from '@/models/user';
+import Token from '@/models/token';
 
 /**
  * Types
@@ -26,6 +27,16 @@ type UserData = Pick<IUser, 'email' | 'password' | 'role'>;
 
 const register = async (req: Request, res: Response): Promise<void> => {
     const { email, password, role } = req.body as UserData;
+
+    if (role === 'admin' && !config.WHITELIST_ADMINS_MAIL.includes(email)) {
+        res.status(403).json({
+            code: 'AuthorizationError',
+            message: 'You are not allowed to register as an admin.',
+        });
+
+        logger.warn(`Unauthorized admin registration attempt by ${email}`);
+        return;
+    }
 
     try {
         const username = genUsername();
@@ -40,6 +51,13 @@ const register = async (req: Request, res: Response): Promise<void> => {
         // Generate access token and refresh token for the new user
         const accessToken = generateAccessToken(newUser._id);
         const refreshToken = generateRefreshToken(newUser._id);
+
+        // Store refresh token in db
+        await Token.create({ token: refreshToken, userId: newUser._id });
+        logger.info('Refresh token stored in database.', {
+            userId: newUser._id,
+            token: refreshToken,
+        });
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
